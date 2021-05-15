@@ -1,4 +1,4 @@
-import { Button } from '@chakra-ui/button';
+import { SubmitHandler, useForm } from 'react-hook-form';
 import {
   Box,
   Divider,
@@ -7,17 +7,20 @@ import {
   HStack,
   SimpleGrid,
   VStack,
-} from '@chakra-ui/layout';
+  Button,
+} from '@chakra-ui/react';
 import Link from 'next/link';
+import { useMutation } from 'react-query';
 import React from 'react';
-import { Input } from '../../components/Form/Input';
-
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 
 import { Header } from '../../components/Header';
 import { Sidebar } from '../../components/Sidebar';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { Input } from '../../components/Form/Input';
+import { api } from '../../services/api';
+import { queryClient } from '../../services/queryClient';
+import { useRouter } from 'next/router';
 
 type CreateUserFormData = {
   name: string;
@@ -39,6 +42,26 @@ const createUserFormSchema = yup.object().shape({
 });
 
 export default function CreateUser() {
+  const router = useRouter();
+
+  const createUser = useMutation(
+    async (user: CreateUserFormData) => {
+      const response = await api.post('users', {
+        user: {
+          ...user,
+          create_at: new Date(),
+        },
+      });
+
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('users');
+      },
+    }
+  );
+
   const { register, handleSubmit, formState } = useForm({
     resolver: yupResolver(createUserFormSchema),
   });
@@ -48,9 +71,9 @@ export default function CreateUser() {
   const handleCreateUser: SubmitHandler<CreateUserFormData> = async (
     values
   ) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await createUser.mutateAsync(values);
 
-    console.log(values);
+    router.push('/users');
   };
 
   return (
@@ -78,6 +101,7 @@ export default function CreateUser() {
             <SimpleGrid minChildWidth="240px" spacing={['6', '8']} width="100%">
               <Input
                 name="name"
+                type="text"
                 label="Nome Completo"
                 error={errors.name}
                 {...register('name')}
